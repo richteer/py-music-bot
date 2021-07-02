@@ -72,12 +72,10 @@ class Video:
             embed.set_thumbnail(url=self.thumbnail)
         return embed
 
-class Setlist:
+class Setlist(list):
     """Class containing information about a user's setlist"""
     def __init__(self, url, requester):
-        self.video_list = []
-
         with ytdl.YoutubeDL(YTDL_OPTS) as ydl:
             info = ydl.extract_info(url, download=False)
             for vid in info["entries"]:
-                self.video_list.append(f"https://youtu.be/{vid['id']}")
+                self.append(f"https://youtu.be/{vid['id']}")

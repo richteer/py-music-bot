@@ -351,7 +351,7 @@ class Music(commands.Cog):
         temp = []
         # Grab a random 5 songs from each user's setlists
         for user,setlist in state.setlists.items():
-            temp += list(map(lambda x: Video(x, user), random.sample(setlist.video_list, k=5)))
+            temp += list(map(lambda x: Video(x, user), random.sample(setlist, k=5)))
 
         # Shuffle all the songs together
         random.shuffle(temp)
@@ -470,7 +470,7 @@ class PlaylistState:
 
         # userid -> Setlist
         # copy from guild state, pops played songs
-        self.user_setlists = {u:v.video_list.copy() for u,v in setlists.items()}
+        self.user_setlists = {u:v.copy() for u,v in setlists.items()}
 
         # Shuffle each setlist so we can always just take from the front
         for _,v in self.user_setlists.items():
