@@ -74,8 +74,24 @@ class Video:
 
 class Setlist(list):
     """Class containing information about a user's setlist"""
-    def __init__(self, url, requester):
+    def __init__(self, *args):
+        if len(args) == 0:
+            return
+
+        if len(args) == 2:
+            url, requester = args
+
+        self.requester = requester
         with ytdl.YoutubeDL(YTDL_OPTS) as ydl:
             info = ydl.extract_info(url, download=False)
             for vid in info["entries"]:
                 self.append(f"https://youtu.be/{vid['id']}")
+
+    def copy(self):
+        ret = Setlist()
+
+        ls = super().copy()
+        ret += ls
+        ret.requester = self.requester
+
+        return ret

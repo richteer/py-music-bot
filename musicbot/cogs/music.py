@@ -337,11 +337,11 @@ class Music(commands.Cog):
         state = self.get_state(ctx.guild)  # get the guild's state
 
         if url == "remove":
-            del state.setlists[ctx.author]
+            del state.setlists[ctx.author.id]
             await ctx.send(f"Deleted playlist for {ctx.author.display_name}")
             return
 
-        state.setlists[ctx.author] = Setlist(url, ctx.author)
+        state.setlists[ctx.author.id] = Setlist(url, ctx.author)
         
         await ctx.send(f"Playlist registered for {ctx.author.display_name}")
 
@@ -502,7 +502,7 @@ class PlaylistState:
 
             # TODO: refill playlist when a user's runs out
             video = self.user_setlists[userid].pop(0)
-            video = Video(video, userid)
+            video = Video(video, self.user_setlists[userid].requester)
 
             ret.append(video)
             time += video.duration
