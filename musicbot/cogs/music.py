@@ -183,9 +183,11 @@ class Music(commands.Cog):
             discord.FFmpegPCMAudio(song.stream_url, before_options=FFMPEG_BEFORE_OPTS), volume=state.volume)
 
         def after_playing(err):
-            # TODO: probably build a target autoplay queue length
             if state.autoplay:
-                state.playlist.append(state.playlist_state.next())
+                more = state.playlist_state.target_length - len(state.playlist)
+
+                if more > 0:
+                    state.playlist.append(state.playlist_state.get_num(more))
 
             if len(state.playlist) > 0:
                 next_song = state.playlist.pop(0)
@@ -535,6 +537,9 @@ class PlaylistState:
         # userid -> Setlist
         # copy from guild state, pops played songs
         self.user_setlists = {u:v.copy() for u,v in setlists.items()}
+
+        # TODO: probably make this configurable
+        self.target_length = 10
 
         # Shuffle each setlist so we can always just take from the front
         for _,v in self.user_setlists.items():
