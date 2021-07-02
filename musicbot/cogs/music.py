@@ -4,8 +4,10 @@ import asyncio
 import youtube_dl
 import logging
 import math
+import random
 from urllib import request
 from ..video import Video
+from ..video import Setlist
 
 # TODO: abstract FFMPEG options into their own file?
 FFMPEG_BEFORE_OPTS = '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'
@@ -163,9 +165,17 @@ class Music(commands.Cog):
             logging.info(f"Enough votes, skipping...")
             channel.guild.voice_client.stop()
 
+    async def _set_status(self, song=None):
+        if song:
+            await self.bot.change_presence(activity=discord.Game(name=f"♫ {song.title}"))
+        else:
+            await self.bot.change_presence(activity=None)
+
+
     def _play_song(self, client, state, song):
         state.now_playing = song
         state.skip_votes = set()  # clear skip votes
+        asyncio.run_coroutine_threadsafe(self._set_status(song=song), self.bot.loop)
         source = discord.PCMVolumeTransformer(
             discord.FFmpegPCMAudio(song.stream_url, before_options=FFMPEG_BEFORE_OPTS), volume=state.volume)
 
@@ -176,6 +186,7 @@ class Music(commands.Cog):
             else:
                 asyncio.run_coroutine_threadsafe(client.disconnect(),
                                                  self.bot.loop)
+                asyncio.run_coroutine_threadsafe(self._set_status(), self.bot.loop)
 
         client.play(source, after=after_playing)
 
@@ -201,7 +212,7 @@ class Music(commands.Cog):
         if len(queue) > 0:
             message = [f"{len(queue)} songs in queue:"]
             message += [
-                f"  {index+1}. **{song.title}** (requested by **{song.requested_by.name}**)"
+                f"  {index+1}. **{song.title}** (requested by **{song.requested_by.nick}**)"
                 for (index, song) in enumerate(queue)
             ]  # add individual songs
             return "\n".join(message)
@@ -240,6 +251,9 @@ class Music(commands.Cog):
         client = ctx.guild.voice_client
         state = self.get_state(ctx.guild)  # get the guild's state
 
+        await self._play(ctx, client, state, url)
+
+    async def _play(self, ctx, client, state, url):
         if client and client.channel:
             try:
                 video = Video(url, ctx.author)
@@ -270,6 +284,40 @@ class Music(commands.Cog):
                 raise commands.CommandError(
                     "You need to be in a voice channel to do that.")
 
+    @commands.command(brief="Merge a setlist into the current queue")
+    @commands.guild_only()
+    async def setlist(self, ctx, *, url):
+        client = ctx.guild.voice_client
+        state = self.get_state(ctx.guild)  # get the guild's state
+
+        state.setlists[ctx.author] = Setlist(url, ctx.author)
+        
+        self._shuffle_setlists(state, client)
+        await self._play(ctx, client, state, state.playlist.pop(0).video_url)
+
+    # Shuffle all user's setlists together
+    def _shuffle_setlists(self, state, client):
+        temp = []
+        # Grab a random 5 songs from each user's setlists
+        for user,setlist in state.setlists.items():
+            temp += list(map(lambda x: Video(x, user), random.sample(setlist.video_list, k=5)))
+
+        # Shuffle all the songs together
+        random.shuffle(temp)
+        state.playlist = temp
+
+    @commands.command(brief="Reshuffle user setlists and generate a new queue")
+    @commands.guild_only()
+    @commands.check(audio_playing)
+    async def reshuffle(self, ctx):
+        client = ctx.guild.voice_client
+        state = self.get_state(ctx.guild)  # get the guild's state
+
+        await ctx.send("Regenerating play queue.")
+        self._shuffle_setlists(state, client)
+        await ctx.send(self._queue_text(state.playlist))
+
+ 
     async def on_reaction_add(self, reaction, user):
         """Respods to reactions added to the bot's messages, allowing reactions to control playback."""
         message = reaction.message
@@ -327,6 +375,9 @@ class GuildState:
         self.playlist = []
         self.skip_votes = set()
         self.now_playing = None
+
+        # userid -> Setlist
+        self.setlists = {}
 
     def is_requester(self, user):
         return self.now_playing.requested_by == user
