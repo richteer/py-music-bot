@@ -34,6 +34,7 @@ class Video:
             self.thumbnail = video[
                 "thumbnail"] if "thumbnail" in video else None
             self.requested_by = requested_by
+            self.duration = video["duration"]
 
     def _get_info(self, video_url):
         # TODO: may need to strip off other &params too here
@@ -65,7 +66,7 @@ class Video:
         embed = discord.Embed(
             title=self.title, description=self.uploader, url=self.video_url)
         embed.set_footer(
-            text=f"Requested by {self.requested_by.nick}",
+            text=f"Requested by {self.requested_by.display_name}",
             icon_url=self.requested_by.avatar_url)
         if self.thumbnail:
             embed.set_thumbnail(url=self.thumbnail)

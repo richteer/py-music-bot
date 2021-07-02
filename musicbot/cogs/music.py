@@ -5,6 +5,7 @@ import youtube_dl
 import logging
 import math
 import random
+import heapq
 from urllib import request
 from ..video import Video
 from ..video import Setlist
@@ -212,7 +213,7 @@ class Music(commands.Cog):
         if len(queue) > 0:
             message = [f"{len(queue)} songs in queue:"]
             message += [
-                f"  {index+1}. **{song.title}** (requested by **{song.requested_by.nick}**)"
+                f"  {index+1}. **{song.title}** (requested by **{song.requested_by.display_name}**)"
                 for (index, song) in enumerate(queue)
             ]  # add individual songs
             return "\n".join(message)
@@ -327,16 +328,23 @@ class Music(commands.Cog):
             client.stop()
 
 
-    @commands.command(brief="Merge a setlist into the current queue")
+    @commands.command(brief="Register the playlist at <url> to the requesting user")
     @commands.guild_only()
     async def setlist(self, ctx, *, url):
         client = ctx.guild.voice_client
         state = self.get_state(ctx.guild)  # get the guild's state
 
+        if url == "remove":
+            del state.setlists[ctx.author]
+            await ctx.send(f"Deleted playlist for {ctx.author.display_name}")
+            return
+
         state.setlists[ctx.author] = Setlist(url, ctx.author)
         
-        self._shuffle_setlists(state, client)
-        await self._play(ctx, client, state, state.playlist.pop(0).video_url)
+        await ctx.send(f"Playlist registered for {ctx.author.display_name}")
+
+        #self._shuffle_setlists(state, client)
+        #await self._play(ctx, client, state, state.playlist.pop(0).video_url)
 
     # Shuffle all user's setlists together
     def _shuffle_setlists(self, state, client):
@@ -348,6 +356,30 @@ class Music(commands.Cog):
         # Shuffle all the songs together
         random.shuffle(temp)
         state.playlist = temp
+
+    @commands.command(brief="TODO")
+    @commands.guild_only()
+    async def build(self, ctx, *, num):
+        try:
+            num = int(num)
+            if num <= 0:
+                raise Exception("not greater than zero")
+        except:
+            await ctx.send(f"{num} is not an integer greater than zero")
+
+        state = self.get_state(ctx.guild)
+        if not state.setlists.items():
+            await ctx.send("No registered setlists, ignoring")
+            return
+
+        client = ctx.guild.voice_client
+
+        state.playlist_state = PlaylistState(state.setlists)
+        state.playlist = state.playlist_state.get_num(num)
+
+        await self._play(ctx, client, state, state.playlist.pop(0).video_url)
+
+
 
     @commands.command(brief="Reshuffle user setlists and generate a new queue")
     @commands.guild_only()
@@ -421,6 +453,43 @@ class GuildState:
 
         # userid -> Setlist
         self.setlists = {}
+        self.playlist_state = None
 
     def is_requester(self, user):
         return self.now_playing.requested_by == user
+
+
+class PlaylistState:
+    """Helper class to manage a playlist state"""
+
+    # users: list(userid, userid...)
+    def __init__(self, setlists):
+        # list((num, userid))
+        self.user_playtime = [(0, u) for u in setlists.keys()]
+        random.shuffle(self.user_playtime) # ensure the first song picked is random
+
+        # userid -> Setlist
+        # copy from guild state, pops played songs
+        self.user_setlists = {u:v.video_list.copy() for u,v in setlists.items()}
+
+        # Shuffle each setlist so we can always just take from the front
+        for _,v in self.user_setlists.items():
+            random.shuffle(v)
+
+    # Get a list of <num> songs, increment play times
+    def get_num(self, num):
+        ret = []
+
+        for i in range(num):
+            time, userid = heapq.heappop(self.user_playtime)
+
+            # TODO: refill playlist when a user's runs out
+            video = self.user_setlists[userid].pop(0)
+            video = Video(video, userid)
+
+            ret.append(video)
+            time += video.duration
+
+            heapq.heappush(self.user_playtime, (time, userid))
+
+        return ret
