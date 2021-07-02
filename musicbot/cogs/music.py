@@ -183,6 +183,10 @@ class Music(commands.Cog):
             discord.FFmpegPCMAudio(song.stream_url, before_options=FFMPEG_BEFORE_OPTS), volume=state.volume)
 
         def after_playing(err):
+            # TODO: probably build a target autoplay queue length
+            if state.autoplay:
+                state.playlist.append(state.playlist_state.next())
+
             if len(state.playlist) > 0:
                 next_song = state.playlist.pop(0)
                 self._play_song(client, state, next_song)
@@ -371,7 +375,12 @@ class Music(commands.Cog):
         except:
             await ctx.send(f"{num} is not an integer greater than zero")
 
+        await self._build(ctx, num)
+
+
+    async def _build(self, ctx, num):
         state = self.get_state(ctx.guild)
+
         if not state.setlists.items():
             await ctx.send("No registered setlists, ignoring")
             return
@@ -404,6 +413,20 @@ class Music(commands.Cog):
             return
 
         state.playlist += state.playlist_state.get_num(num)
+
+    @commands.command(brief="Toggle autoplay mode from registered setlists")
+    @commands.guild_only()
+    async def autoplay(self, ctx):
+        state = self.get_state(ctx.guild)
+        state.autoplay = not state.autoplay
+
+        await ctx.send(f"Autoplay has been {'enabled' if state.autoplay else 'disabled'}")
+
+        if state.autoplay and not state.playlist_state:
+            await self._build(ctx, 10)
+        elif not state.autoplay:
+            state.playlist_state = None
+
 
 
     @commands.command(brief="Reshuffle user setlists and generate a new queue")
@@ -494,6 +517,7 @@ class GuildState:
         # userid -> Setlist
         self.setlists = {}
         self.playlist_state = None
+        self.autoplay = False
 
     def is_requester(self, user):
         return self.now_playing.requested_by == user
