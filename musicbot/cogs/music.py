@@ -146,6 +146,8 @@ class Music(commands.Cog):
             ])  # don't count bots
             required_votes = math.ceil(
                 self.config["vote_skip_ratio"] * users_in_channel)
+            if required_votes == 0:
+                required_votes = 1
             await ctx.send(
                 f"{ctx.author.mention} voted to skip ({len(state.skip_votes)}/{required_votes} votes)"
             )
@@ -431,6 +433,8 @@ class Music(commands.Cog):
                     ])  # don't count bots
                     required_votes = math.ceil(
                         self.config["vote_skip_ratio"] * users_in_channel)
+                    if required_votes == 0:
+                        required_votes = 1
                     await channel.send(
                         f"{user.mention} voted to skip ({len(state.skip_votes)}/{required_votes} votes)"
                     )
