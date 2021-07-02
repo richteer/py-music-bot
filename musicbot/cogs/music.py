@@ -284,6 +284,49 @@ class Music(commands.Cog):
                 raise commands.CommandError(
                     "You need to be in a voice channel to do that.")
 
+
+    @commands.command(brief="Queue <url> to play after the one currently playing")
+    @commands.guild_only()
+    async def playnext(self, ctx, *, url):
+        client = ctx.guild.voice_client
+        state = self.get_state(ctx.guild)
+
+        # TODO: maybe make better "nowplaying" checking logic
+        if not client:
+            await self._play(ctx, client, state, url)
+        else:
+            try:
+                video = Video(url, ctx.author)
+            except youtube_dl.DownloadError as e:
+                logging.warn(f"Error downloading video: {e}")
+                await ctx.send(
+                    "There was an error downloading your video, sorry.")
+                return
+
+            state.playlist.insert(0, video)
+
+    # TODO: probably make this admin-only, vote, etc
+    @commands.command(brief="Stop the current song and play <url> right now")
+    @commands.guild_only()
+    async def playnow(self, ctx, *, url):
+        client = ctx.guild.voice_client
+        state = self.get_state(ctx.guild)
+
+        if not client:
+            await self._play(ctx, client, state, url)
+        else:
+            try:
+                video = Video(url, ctx.author)
+            except youtube_dl.DownloadError as e:
+                logging.warn(f"Error downloading video: {e}")
+                await ctx.send(
+                    "There was an error downloading your video, sorry.")
+                return
+
+            state.playlist.insert(0, video)
+            client.stop()
+
+
     @commands.command(brief="Merge a setlist into the current queue")
     @commands.guild_only()
     async def setlist(self, ctx, *, url):
