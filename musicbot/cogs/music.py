@@ -359,6 +359,8 @@ class Music(commands.Cog):
         random.shuffle(temp)
         state.playlist = temp
 
+
+    # TODO: rename to something better
     @commands.command(brief="TODO")
     @commands.guild_only()
     async def build(self, ctx, *, num):
@@ -381,6 +383,27 @@ class Music(commands.Cog):
 
         await self._play(ctx, client, state, state.playlist.pop(0).video_url)
 
+
+    @commands.command(brief="TODO")
+    @commands.guild_only()
+    async def extend(self, ctx, *, num):
+        try:
+            num = int(num)
+            if num <= 0:
+                raise Exception("not greater than zero")
+        except:
+            await ctx.send(f"{num} is not an integer greater than zero")
+
+        state = self.get_state(ctx.guild)
+        if not state.setlists.items():
+            await ctx.send("No registered setlists, ignoring")
+            return
+
+        if not state.playlist_state:
+            await ctx.send("Playlist mode not activated, use !build to start")
+            return
+
+        state.playlist += state.playlist_state.get_num(num)
 
 
     @commands.command(brief="Reshuffle user setlists and generate a new queue")
