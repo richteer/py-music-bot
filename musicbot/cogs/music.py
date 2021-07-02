@@ -520,16 +520,27 @@ class PlaylistState:
     def get_num(self, num):
         ret = []
 
+        # TODO: yeah this is a problem.
+        #  This function stalls if you build too much, so this needs to be reconsidered.
+        #  Maybe autoplay should be the only behavior, and it only queues out maybe 10 in advance
+        if num >= 20:
+            num = 20
+
         for i in range(num):
-            time, userid = heapq.heappop(self.user_playtime)
-
-            # TODO: refill playlist when a user's runs out
-            video = self.user_setlists[userid].pop(0)
-            video = Video(video, self.user_setlists[userid].requester)
-
-            ret.append(video)
-            time += video.duration
-
-            heapq.heappush(self.user_playtime, (time, userid))
+            ret.append(self.next())
 
         return ret
+
+    # Return a video object for the next song to play
+    def next(self):
+        time, userid = heapq.heappop(self.user_playtime)
+
+        # TODO: refill playlist when a user's runs out
+        video = self.user_setlists[userid].pop(0)
+        video = Video(video, self.user_setlists[userid].requester)
+
+        time += video.duration
+
+        heapq.heappush(self.user_playtime, (time, userid))
+
+        return video
