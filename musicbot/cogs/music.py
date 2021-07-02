@@ -416,7 +416,8 @@ class Music(commands.Cog):
 
         state.playlist += state.playlist_state.get_num(num)
 
-    @commands.command(brief="Toggle autoplay mode from registered setlists")
+    @commands.command(brief="Toggle autoplay mode from registered setlists",
+                      aliases=["a", "ap", "yolo"])
     @commands.guild_only()
     async def autoplay(self, ctx):
         state = self.get_state(ctx.guild)
