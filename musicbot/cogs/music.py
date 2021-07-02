@@ -441,6 +441,19 @@ class Music(commands.Cog):
         for control in CONTROLS:
             await message.add_reaction(control)
 
+    # TODO: Holy crap absolutely don't expose this one to the public.
+    @commands.command()
+    @commands.guild_only()
+    @commands.has_permissions(administrator=True)
+    async def debug(self, ctx, *, url):
+        state = self.get_state(ctx.guild)  # get the guild's state
+
+        try:
+            ret = f"```{str(eval(url))[:1900]}```"
+        except Exception as e:
+            ret = e
+
+        await ctx.send(f"{ret}")
 
 class GuildState:
     """Helper class managing per-guild state."""
