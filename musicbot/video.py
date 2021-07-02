@@ -1,5 +1,7 @@
 import youtube_dl as ytdl
 import discord
+import json
+import logging
 
 YTDL_OPTS = {
     "default_search": "ytsearch",
@@ -8,6 +10,14 @@ YTDL_OPTS = {
     "extract_flat": "in_playlist"
 }
 
+# TODO: create if doesn't exist or skip probably
+video_cache = {}
+try:
+    with open("video_cache.json", "r") as f:
+        video_cache = json.loads(f.read())
+        logging.info("Video cache loaded successfully")
+except:
+    logging.warn("Video cache failed to load, ignore if first run")
 
 class Video:
     """Class containing information about a particular video."""
@@ -26,14 +36,28 @@ class Video:
             self.requested_by = requested_by
 
     def _get_info(self, video_url):
+        # TODO: may need to strip off other &params too here
+        if video := video_cache.get(video_url.split("v=")[-1]):
+            logging.info(f"Video info for {video['id']} retrieved from cache")
+            return video
+
         with ytdl.YoutubeDL(YTDL_OPTS) as ydl:
             info = ydl.extract_info(video_url, download=False)
             video = None
             if "_type" in info and info["_type"] == "playlist":
-                return self._get_info(
+                video = self._get_info(
                     info["entries"][0]["url"])  # get info for first video
             else:
                 video = info
+
+            video_cache[video["id"]] = video
+
+            # TODO: have some kind of cache manager instead for video objects
+            #  This is probably going to perform very poorly as the cache grows
+            #  Maybe load it one at the beginning, and either periodically flush
+            #  or just dump it at termination time
+            with open("video_cache.json", "w") as f:
+                f.write(json.dumps(video_cache))
             return video
 
     def get_embed(self):

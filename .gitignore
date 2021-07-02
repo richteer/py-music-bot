@@ -109,3 +109,5 @@ config.toml
 
 # .vscode editor files
 .vscode
+
+video_cache.json
